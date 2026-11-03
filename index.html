@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Word Invaders</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+  :root{
+    --bg:#05060f; --panel:#0c0f22; --panel2:#121633; --line:#272d5c;
+    --cyan:#3ef2e6; --purple:#b36bff; --pink:#ff5d8f; --text:#eef0ff; --muted:#9aa0c8;
+    --red:#ff5a6e; --yellow:#ffe066;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(ellipse at 50% 0%,#141a3d 0%,var(--bg) 60%);color:var(--text);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:10px 16px 16px;overflow-x:hidden}
+  .app{width:100%;max-width:980px;display:flex;flex-direction:column;gap:8px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px;letter-spacing:.12em;font-weight:800;color:var(--cyan);
+    text-shadow:0 0 8px rgba(62,242,230,.6)}
+  h1 span{color:var(--purple);text-shadow:0 0 8px rgba(179,107,255,.6)}
+  .hud{display:flex;gap:16px;align-items:center;font-size:16px;font-weight:700;flex-wrap:wrap}
+  .hud .lbl{color:var(--muted);font-weight:600;font-size:13px;margin-right:4px}
+  .lives{letter-spacing:2px;color:var(--pink);font-size:18px}
+  .lives .off{color:#3a3157}
+  .iconbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;
+    padding:4px 10px;font-size:14px;cursor:pointer}
+  .hint{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 16px;
+    display:flex;flex-direction:column;gap:6px;min-height:120px}
+  .hint-label{font-size:13px;color:var(--purple);font-weight:700}
+  .hint-text{font-family:"Trebuchet MS",Verdana,Arial,sans-serif;font-size:clamp(17px,2.3vw,23px);
+    line-height:1.35;color:#fff}
+  .hint-text .gap{color:var(--yellow);font-weight:700;letter-spacing:.05em}
+  .row2{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .blanks{display:flex;gap:8px;flex-wrap:wrap}
+  .blank{width:clamp(30px,4.2vw,42px);height:clamp(38px,5vw,50px);border-bottom:4px solid #5b62a8;
+    display:flex;align-items:center;justify-content:center;font-family:"Trebuchet MS",Arial,sans-serif;
+    font-size:clamp(24px,3.4vw,34px);font-weight:800;color:var(--cyan)}
+  .blank.on{border-color:var(--cyan);text-shadow:0 0 8px rgba(62,242,230,.7);animation:pop .35s ease}
+  @keyframes pop{0%{transform:scale(1.6)}100%{transform:scale(1)}}
+  .feedback{font-size:16px;font-weight:700;min-height:22px;transition:opacity .3s}
+  .feedback.good{color:var(--cyan)} .feedback.bad{color:var(--red)} .feedback.info{color:var(--yellow)}
+  .stage{position:relative;width:min(100%, calc((100vh - 230px) * 4 / 3));min-width:300px;aspect-ratio:4/3;
+    margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 0 24px rgba(179,107,255,.18)}
+  canvas{display:block;width:100%;height:100%;background:#03040b;touch-action:none;cursor:crosshair}
+  .screen{position:absolute;inset:0;background:rgba(4,5,14,.92);display:none;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:20px;gap:12px;overflow:auto}
+  .screen.show{display:flex}
+  .screen h2{margin:0;font-size:clamp(22px,4vw,34px);color:var(--cyan);text-shadow:0 0 10px rgba(62,242,230,.55)}
+  .screen p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+  .title-big{font-size:clamp(28px,6vw,54px);font-weight:900;letter-spacing:.1em;color:var(--cyan);
+    text-shadow:0 0 14px rgba(62,242,230,.6);line-height:1.1}
+  .title-big span{color:var(--purple);text-shadow:0 0 14px rgba(179,107,255,.6)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .btn{background:linear-gradient(180deg,#1b2150,#12163a);border:2px solid var(--cyan);color:#fff;
+    border-radius:12px;padding:12px 22px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit}
+  .btn:hover:not(:disabled),.btn:focus-visible{box-shadow:0 0 14px rgba(62,242,230,.6);outline:none}
+  .btn.alt{border-color:var(--purple)}
+  .btn.ghost{border-color:var(--line);font-weight:600;font-size:15px}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:680px;max-height:170px;overflow:auto}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:14px;
+    font-family:"Trebuchet MS",Arial,sans-serif;font-weight:700}
+  .stat{font-size:16px;color:var(--text)}
+  .warn{color:var(--yellow)!important}
+  .err{color:var(--red)!important}
+  .loadlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;width:100%;max-width:700px;
+    max-height:300px;overflow:auto;text-align:left}
+  .li{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;
+    display:flex;justify-content:space-between;gap:6px}
+  .li b{font-family:"Trebuchet MS",Arial,sans-serif}
+  .st-wait{color:var(--muted)} .st-ok{color:var(--cyan)} .st-none{color:var(--yellow)} .st-fail{color:var(--red)}
+  .howto{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;font-size:16px;max-width:560px}
+  .howto dt{color:var(--cyan);font-weight:800}
+  .howto dd{margin:0}
+  kbd{background:#1d2250;border:1px solid #3a4190;border-radius:5px;padding:1px 6px;font-size:13px;font-family:inherit}
+  .small{font-size:12.5px!important}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>SPACE <span>WORD</span> INVADERS</h1>
+    <div class="hud">
+      <div><span class="lbl">점수</span><span id="hudScore">0</span></div>
+      <div><span class="lbl">라운드</span><span id="hudRound">-</span></div>
+      <div><span class="lbl">목숨</span><span class="lives" id="hudLives"></span></div>
+      <button class="iconbtn" id="btnSound" title="소리 켜기/끄기 (M)">🔊 소리</button>
+    </div>
+  </header>
+
+  <section class="hint" aria-live="polite">
+    <div class="hint-label" id="hintLabel">힌트</div>
+    <div class="hint-text" id="hintText">게임을 시작하면 여기에 영어 힌트가 나와요.</div>
+    <div class="row2">
+      <div class="blanks" id="blanks"></div>
+      <div class="feedback" id="feedback"></div>
+    </div>
+  </section>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" width="960" height="720"></canvas>
+
+    <!-- 시작 화면 -->
+    <div class="screen show" id="scMenu">
+      <div class="title-big">SPACE <span>WORD</span><br>INVADERS</div>
+      <p>영어 힌트를 읽고, 떨어지는 알파벳 중 알맞은 글자를 쏴서 단어를 완성해요!</p>
+      <div class="btns">
+        <button class="btn" id="btnDemo">데모로 시작 (10라운드)</button>
+        <button class="btn alt" id="btnUpload">단어 목록 올리기</button>
+      </div>
+      <p class="small">엑셀(.xlsx) · CSV(.csv) · 텍스트(.txt) 파일 / 한 줄(행)에 영어 단어 하나</p>
+      <p class="small" id="menuBest"></p>
+      <p class="small err" id="menuErr"></p>
+      <input type="file" id="fileInput" accept=".xlsx,.csv,.txt" class="hidden">
+    </div>
+
+    <!-- 업로드 확인 -->
+    <div class="screen" id="scPreview">
+      <h2>단어 목록 확인</h2>
+      <p id="pvFile"></p>
+      <p class="stat" id="pvStat"></p>
+      <p class="small warn" id="pvWarn"></p>
+      <div class="chips" id="pvChips"></div>
+      <p class="stat" id="pvRounds"></p>
+      <div class="btns">
+        <button class="btn" id="btnPvStart">예문 불러오고 시작</button>
+        <button class="btn ghost" id="btnPvOther">다른 파일 고르기</button>
+        <button class="btn ghost" id="btnPvBack">처음으로</button>
+      </div>
+    </div>
+
+    <!-- 예문 불러오기 -->
+    <div class="screen" id="scLoading">
+      <h2 id="ldTitle">영어 예문을 불러오는 중…</h2>
+      <div class="loadlist" id="ldList"></div>
+      <p class="stat" id="ldSummary"></p>
+      <p class="small">예문 출처: Free Dictionary API (dictionaryapi.dev) · Wiktionary 자료 기반 (CC BY-SA)<br>
+        인터넷으로는 단어만 보내요. 예문을 못 찾으면 뜻 힌트로 대신해요.</p>
+      <div class="btns"><button class="btn" id="btnLdNext" disabled>다음</button></div>
+    </div>
+
+    <!-- 조작 안내 -->
+    <div class="screen" id="scHowto">
+      <h2>이렇게 해요</h2>
+      <dl class="howto">
+        <dt>움직이기</dt><dd><kbd>←↑↓→</kbd> 또는 <kbd>W A S D</kbd>, 아니면 마우스를 움직여요</dd>
+        <dt>쏘기</dt><dd><kbd>스페이스바</kbd> 또는 마우스 클릭 (누르고 있으면 계속 쏴요)</dd>
+        <dt>맞는 글자</dt><dd>단어에 있는 새 글자를 맞히면 <b style="color:var(--cyan)">+10점</b></dd>
+        <dt>없는 글자</dt><dd>단어에 없는 글자를 맞히면 <b style="color:var(--red)">-5점, 목숨 -1</b></dd>
+        <dt>조심!</dt><dd>알파벳에 부딪히면 목숨 -1. 라운드마다 목숨이 6개로 돌아와요</dd>
+        <dt>그 밖에</dt><dd><kbd>P</kbd> 잠깐 멈춤 · <kbd>M</kbd> 소리 켜기/끄기</dd>
+      </dl>
+      <p class="stat" id="htRounds"></p>
+      <div class="btns"><button class="btn" id="btnGo">게임 시작</button></div>
+    </div>
+
+    <!-- 일시정지 -->
+    <div class="screen" id="scPause">
+      <h2>잠깐 멈춤</h2>
+      <p><kbd>P</kbd>를 누르거나 아래 버튼을 눌러 계속해요.</p>
+      <div class="btns">
+        <button class="btn" id="btnResume">계속하기</button>
+        <button class="btn ghost" id="btnQuit">처음 화면</button>
+      </div>
+    </div>
+
+    <!-- 종료 -->
+    <div class="screen" id="scEnd">
+      <h2 id="endTitle"></h2>
+      <p class="stat" id="endMsg"></p>
+      <p class="stat" id="endScore"></p>
+      <div class="chips" id="endWords"></div>
+      <div class="btns">
+        <button class="btn" id="btnAgain">다시 하기 (R)</button>
+        <button class="btn ghost" id="btnHome">처음 화면</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================== 설정 ================== */
+const W = 960, H = 720;
+const START_LIVES = 6, MAX_UPLOAD_ROUNDS = 20;
+const FIRE_GAP = 0.28;               // 원본 발사 간격
+const SCRATCH_FPS = 30, STAGE_SCALE = W / 480; // Scratch 무대(480x360) → 960x720
+const SHIP_SPEED = 430;              // 키보드 이동 속도(px/s)
+const BULLET_SPEED = 900;
+const LETTER_R = 27, SHIP_R = 24;
+const DEMO = [
+  ["APPLE","A red or green fruit that grows on trees"],
+  ["TIGER","A large wild cat with orange and black stripes"],
+  ["HOUSE","A building where a family lives"],
+  ["PLANT","A living thing that grows in soil and needs sunlight"],
+  ["MUSIC","Sounds arranged with rhythm and melody"],
+  ["OCEAN","A huge body of salt water"],
+  ["BREAD","Food made by baking flour dough"],
+  ["CHAIR","A piece of furniture you sit on"],
+  ["LIGHT","It helps you see in the dark"],
+  ["WATER","A clear liquid you drink to stay hydrated"],
+];
+const DEMO_HINTS = Object.fromEntries(DEMO);
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+function store(key, val){ try{ if(val===undefined) return localStorage.getItem(key); localStorage.setItem(key,val); }catch(e){ return null; } }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ================== 단어 목록 읽기 ================== */
+const HEADER_WORDS = new Set(["WORD","WORDS","VOCAB","VOCABULARY","단어","영단어","ENGLISH"]);
+function normalizeWord(raw){
+  if(raw==null) return "";
+  return String(raw).replace(/^﻿/,"").trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g,"").trim().toUpperCase();
+}
+// 규칙: 앞뒤 공백·따옴표 제거 후 대문자, 영문자 2~12자만 사용. 중복은 처음 것만 사용.
+// 첫 줄이 "word/단어" 같은 머리글이면 건너뜀.
+function buildWordList(rows){
+  const words=[], seen=new Set(), invalid=[]; let dup=0, first=true;
+  for(const r of rows){
+    const w = normalizeWord(r);
+    if(!w) continue;
+    if(first){ first=false; if(HEADER_WORDS.has(w)) continue; }
+    if(!/^[A-Z]{2,12}$/.test(w)){ invalid.push(String(r).trim()); continue; }
+    if(seen.has(w)){ dup++; continue; }
+    seen.add(w); words.push(w);
+  }
+  return {words, dup, invalid};
+}
+function decodeText(buf){
+  const b = new Uint8Array(buf);
+  if(b[0]===0xFF && b[1]===0xFE) return new TextDecoder("utf-16le").decode(buf);
+  if(b[0]===0xFE && b[1]===0xFF) return new TextDecoder("utf-16be").decode(buf);
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(buf); }
+  catch(e){ return new TextDecoder("euc-kr").decode(buf); } // 한국어 윈도우 엑셀의 CSV
+}
+function csvFirstColumn(text){
+  const out=[]; let field="", inQ=false, col=0;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){ if(col===0) field+='"'; i++; } else inQ=false; }
+      else if(col===0) field+=c;
+      continue;
+    }
+    if(c==='"'){ inQ=true; continue; }
+    if(c===","||c===";"||c==="\t"){ col++; continue; }
+    if(c==="\n"||c==="\r"){ if(c==="\r"&&text[i+1]==="\n") i++; out.push(field); field=""; col=0; continue; }
+    if(col===0) field+=c;
+  }
+  if(field!=="" || col>0) out.push(field);
+  return out;
+}
+function txtLines(text){ return text.split(/\r\n|\r|\n/).map(l=>l.split(/[,\t]/)[0]); }
+function xlsxColumnA(buf){
+  if(typeof XLSX==="undefined") throw new Error("NO_XLSX");
+  const wb = XLSX.read(buf,{type:"array"});
+  const sh = wb.Sheets[wb.SheetNames[0]];
+  if(!sh || !sh["!ref"]) return [];
+  const range = XLSX.utils.decode_range(sh["!ref"]), out=[];
+  for(let r=range.s.r;r<=range.e.r;r++){
+    const cell = sh[XLSX.utils.encode_cell({r,c:0})];
+    out.push(cell ? (cell.w!=null ? cell.w : cell.v) : "");
+  }
+  return out;
+}
+async function readWordFile(file){
+  const name = file.name.toLowerCase(), buf = await file.arrayBuffer();
+  let rows;
+  if(name.endsWith(".xlsx")) rows = xlsxColumnA(buf);
+  else if(name.endsWith(".csv")) rows = csvFirstColumn(decodeText(buf));
+  else if(name.endsWith(".txt")) rows = txtLines(decodeText(buf));
+  else throw new Error("BAD_TYPE");
+  return buildWordList(rows);
+}
+
+/* ================== 예문 가리기 ================== */
+function forms(word, broad){
+  const l = word.toLowerCase(), v = new Set([l, l+"s", l+"es", l+"ed", l+"d", l+"ing"]);
+  if(l.endsWith("e")) v.add(l.slice(0,-1)+"ing");
+  if(l.endsWith("y")){ v.add(l.slice(0,-1)+"ies"); v.add(l.slice(0,-1)+"ied"); }
+  if(/[^aeiou][aeiou][bdgmnprt]$/.test(l)){ const d=l+l.slice(-1); v.add(d+"ed"); v.add(d+"ing"); }
+  if(broad){ v.add(l+"er"); v.add(l+"est"); v.add(l+"r"); v.add(l+"st");
+    if(l.endsWith("y")){ v.add(l.slice(0,-1)+"ier"); v.add(l.slice(0,-1)+"iest"); } }
+  return [...v].sort((a,b)=>b.length-a.length);
+}
+// 대소문자 무관, 단어 경계 기준(다른 단어 속 글자열은 그대로 둠)
+function wordRegex(word, broad, exactOnly){
+  const alts = exactOnly ? [word.toLowerCase()] : forms(word, broad);
+  return new RegExp("(^|[^A-Za-z])(" + alts.join("|") + ")(?![A-Za-z])", "gi");
+}
+const GAP = "_____";
+function maskText(text, word){ return text.replace(wordRegex(word,true), (m,pre)=>pre+GAP); }
+function hasWord(text, word, exactOnly){ return wordRegex(word,false,exactOnly).test(text); }
+
+/* ================== 온라인 예문 ================== */
+const CACHE_PREFIX = "swi_hint_v1_";
+async function fetchWithTimeout(url, ms){
+  const ac = new AbortController(); const t = setTimeout(()=>ac.abort(), ms);
+  try{ return await fetch(url,{signal:ac.signal}); } finally{ clearTimeout(t); }
+}
+function pickExample(examples, word){
+  const ok = examples.map(e=>e.trim()).filter(e=>e.length>=12 && e.length<=170 && hasWord(e,word));
+  if(!ok.length) return null;
+  ok.sort((a,b)=>{
+    const ea = hasWord(a,word,true)?0:1, eb = hasWord(b,word,true)?0:1;
+    if(ea!==eb) return ea-eb;
+    return Math.abs(a.length-70)-Math.abs(b.length-70);
+  });
+  return ok[0];
+}
+// 결과: {status:'ok'|'none'|'fail', example?, definition?}
+async function fetchHint(word){
+  const cached = store(CACHE_PREFIX+word);
+  if(cached){ try{ return JSON.parse(cached); }catch(e){} }
+  let res;
+  try{ res = await fetchWithTimeout("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(word.toLowerCase()), 8000); }
+  catch(e){ return {status:"fail"}; }
+  if(res.status===404){ const r={status:"none"}; store(CACHE_PREFIX+word, JSON.stringify(r)); return r; }
+  if(!res.ok) return {status:"fail"};
+  let data; try{ data = await res.json(); }catch(e){ return {status:"fail"}; }
+  const examples=[], defs=[];
+  for(const entry of (Array.isArray(data)?data:[])){
+    for(const m of (entry.meanings||[])){
+      for(const d of (m.definitions||[])){
+        if(d.example) examples.push(d.example);
+        if(d.definition) defs.push(d.definition);
+      }
+    }
+  }
+  const ex = pickExample(examples, word);
+  const def = defs.find(d=>d.length<=160) || defs[0] || null;
+  const r = ex ? {status:"ok", example:ex, definition:def} : {status:"none", definition:def};
+  store(CACHE_PREFIX+word, JSON.stringify(r));
+  return r;
+}
+// 힌트 결정 순서: 온라인 예문 → 원본 데모 설명 → 사전 뜻풀이 → 글자 수 안내
+function resolveHint(word, r){
+  if(r && r.status==="ok") return {kind:"example", text:maskText(r.example, word)};
+  if(DEMO_HINTS[word]) return {kind:"meaning", text:maskText(DEMO_HINTS[word], word)};
+  if(r && r.definition) return {kind:"meaning", text:maskText(r.definition, word)};
+  return {kind:"letters", text:`Find the ${word.length}-letter English word. It starts with "${word[0]}".`};
+}
+const HINT_LABEL = {example:"예문 힌트 · 빈칸에 들어갈 단어는?", meaning:"뜻 힌트 · 이 뜻을 가진 단어는?", letters:"글자 힌트"};
+
+/* ================== 효과음 ================== */
+let audio=null, soundOn = store("swi_sound")!=="off";
+function ac(){ if(!audio){ try{ audio = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(audio&&audio.state==="suspended") audio.resume(); return audio; }
+function tone(freq, dur, type="square", vol=0.08, when=0, slide=0){
+  if(!soundOn) return; const a=ac(); if(!a) return;
+  const t=a.currentTime+when, o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,freq+slide), t+dur);
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+dur+0.02);
+}
+const sfx = {
+  shoot(){ tone(880,0.06,"square",0.025,0,-300); },
+  good(){ tone(660,0.09,"triangle",0.12); tone(990,0.14,"triangle",0.12,0.08); },
+  bad(){ tone(200,0.22,"sawtooth",0.07,0,-90); },
+  hit(){ tone(140,0.3,"sawtooth",0.09,0,-80); tone(90,0.3,"square",0.05,0.05); },
+  clear(){ [523,659,784,1046].forEach((f,i)=>tone(f,0.16,"triangle",0.11,i*0.09)); },
+  win(){ [523,659,784,1046,784,1046,1318].forEach((f,i)=>tone(f,0.2,"triangle",0.11,i*0.11)); },
+  over(){ [392,330,262,196].forEach((f,i)=>tone(f,0.25,"triangle",0.1,i*0.16)); },
+};
+function updateSoundBtn(){ $("btnSound").textContent = soundOn ? "🔊 소리" : "🔇 소리"; }
+function toggleSound(){ soundOn=!soundOn; store("swi_sound", soundOn?"on":"off"); updateSoundBtn(); }
+
+/* ================== 게임 상태 ================== */
+const G = {
+  state:"menu",          // menu, preview, loading, howto, playing, paused, clear, end
+  mode:"demo",           // demo | upload
+  pool:[],               // 업로드된 전체 단어
+  words:[],              // 이번 게임 출제 단어(순서대로)
+  hints:{},              // word → fetch 결과
+  round:0, score:0, lives:START_LIVES,
+  word:"", revealed:new Set(), completed:[],
+  ship:{x:W/2,y:H-90}, letters:[], bullets:[], floats:[], sparks:[],
+  spawnT:0, fireT:0, invuln:0, clearT:0, time:0,
+  input:"keys", target:{x:W/2,y:H-90}, keys:{}, pointerDown:false, touch:false,
+  upload:null, fileName:"",
+};
+
+function bestScore(){ return parseInt(store("swi_best")||"0",10)||0; }
+
+/* ================== 화면 전환 ================== */
+const SCREENS = ["scMenu","scPreview","scLoading","scHowto","scPause","scEnd"];
+function show(id){ SCREENS.forEach(s=>$(s).classList.toggle("show", s===id)); const b=$(id)&&$(id).querySelector(".btn:not(:disabled)"); if(b) setTimeout(()=>b.focus({preventScroll:true}),30); }
+function hideAll(){ SCREENS.forEach(s=>$(s).classList.remove("show")); }
+
+function goMenu(){
+  G.state="menu"; G.letters=[]; G.bullets=[]; G.floats=[];
+  $("menuBest").textContent = bestScore()>0 ? `최고 점수: ${bestScore()}점` : "";
+  $("menuErr").textContent="";
+  setHint(null); renderHUD(); show("scMenu");
+}
+
+/* ---- 업로드 ---- */
+$("btnUpload").onclick = ()=>{ $("fileInput").value=""; $("fileInput").click(); };
+$("btnPvOther").onclick = ()=>{ $("fileInput").value=""; $("fileInput").click(); };
+$("btnPvBack").onclick = goMenu;
+$("fileInput").onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const res = await readWordFile(f);
+    G.upload = res; G.fileName = f.name; showPreview();
+  }catch(err){
+    const msg = err.message==="NO_XLSX" ? "엑셀 파일을 읽으려면 인터넷 연결이 필요해요. CSV나 TXT로 저장해서 올려 주세요."
+              : err.message==="BAD_TYPE" ? ".xlsx, .csv, .txt 파일만 올릴 수 있어요."
+              : "파일을 읽지 못했어요. 파일 형식을 확인해 주세요.";
+    if(G.state==="preview"){ $("pvWarn").textContent=msg; } else { $("menuErr").textContent=msg; }
+  }
+};
+function showPreview(){
+  G.state="preview";
+  const {words,dup,invalid} = G.upload, n=words.length;
+  $("pvFile").textContent = "파일: " + G.fileName;
+  $("pvStat").innerHTML = n ? `사용할 단어 <b style="color:var(--cyan)">${n}개</b>` : `<span class="err">사용할 수 있는 단어가 없어요.</span>`;
+  const warns=[];
+  if(dup) warns.push(`겹치는 단어 ${dup}개는 한 번만 넣었어요.`);
+  if(invalid.length) warns.push(`영어 알파벳 2~12자가 아닌 항목 ${invalid.length}개는 뺐어요: ${invalid.slice(0,5).map(s=>`"${s.slice(0,20)}"`).join(", ")}${invalid.length>5?" …":""}`);
+  $("pvWarn").textContent = warns.join(" ");
+  $("pvChips").innerHTML = words.map(w=>`<span class="chip">${w}</span>`).join("");
+  const rounds = Math.min(n, MAX_UPLOAD_ROUNDS);
+  $("pvRounds").textContent = n===0 ? "" : n>MAX_UPLOAD_ROUNDS ? `이번 게임: ${rounds}라운드 (단어 ${n}개 중 무작위 ${rounds}개)` : `이번 게임: ${rounds}라운드 (모든 단어 한 번씩)`;
+  $("btnPvStart").disabled = n===0;
+  show("scPreview");
+}
+$("btnPvStart").onclick = ()=>{ G.mode="upload"; G.pool=G.upload.words.slice(); prepareGame(); };
+$("btnDemo").onclick = ()=>{ ac(); G.mode="demo"; G.pool=DEMO.map(d=>d[0]); prepareGame(); };
+
+function selectWords(){
+  return G.mode==="demo" ? shuffle(G.pool) : shuffle(G.pool).slice(0, MAX_UPLOAD_ROUNDS);
+}
+/* ---- 예문 불러오기 ---- */
+async function prepareGame(){
+  ac();
+  G.words = selectWords();
+  G.state="loading"; show("scLoading");
+  $("btnLdNext").disabled = true; $("ldTitle").textContent="영어 예문을 불러오는 중…"; $("ldSummary").textContent="";
+  $("ldList").innerHTML = G.words.map((w,i)=>`<div class="li"><b>${w}</b><span id="ld${i}" class="st-wait">불러오는 중…</span></div>`).join("");
+  await loadHints(G.words, (i,r)=>{
+    const el=$("ld"+i); if(!el) return;
+    const t = r.status==="ok" ? ["st-ok","예문 ✓"] : r.status==="none" ? ["st-none","예문 없음 → 뜻 힌트"] : ["st-fail","연결 실패 → 대체 힌트"];
+    el.className=t[0]; el.textContent=t[1];
+  });
+  if(G.state!=="loading") return;
+  const ok = G.words.filter(w=>G.hints[w]&&G.hints[w].status==="ok").length;
+  const fail = G.words.filter(w=>!G.hints[w]||G.hints[w].status==="fail").length;
+  $("ldTitle").textContent = "준비 완료!";
+  $("ldSummary").innerHTML = `예문 ${ok}개 / ${G.words.length}개` + (fail ? ` <span class="err">· 인터넷 연결 실패 ${fail}개는 대체 힌트를 써요</span>` : "");
+  $("btnLdNext").disabled=false; $("btnLdNext").focus();
+}
+async function loadHints(words, onEach){
+  let next=0;
+  async function worker(){
+    while(next<words.length){
+      const i=next++, w=words[i];
+      const r = (G.hints[w] && G.hints[w].status!=="fail") ? G.hints[w] : await fetchHint(w);
+      G.hints[w]=r; onEach(i,r);
+    }
+  }
+  await Promise.all([worker(),worker(),worker(),worker()]);
+}
+$("btnLdNext").onclick = ()=>{ G.state="howto"; $("htRounds").textContent=`총 ${G.words.length}라운드 · 모든 단어를 완성하면 승리!`; show("scHowto"); };
+$("btnGo").onclick = ()=>startGame(false);
+
+/* ---- 게임 시작/라운드 ---- */
+function startGame(reselect){
+  ac();
+  if(reselect){ G.words = selectWords(); if(G.words.some(w=>!G.hints[w])){ prepareGame(); return; } }
+  G.score=0; G.round=0; G.completed=[];
+  hideAll(); nextRound();
+}
+function clearField(){ G.letters=[]; G.bullets=[]; G.sparks=[]; G.floats=[]; }
+function nextRound(){
+  G.round++;
+  G.word = G.words[G.round-1];
+  G.revealed = new Set();
+  G.lives = START_LIVES;
+  clearField();
+  G.ship.x=W/2; G.ship.y=H-90; G.target={x:W/2,y:H-90};
+  G.spawnT = 0.6; G.fireT=0; G.invuln=0.8;
+  G.state="playing";
+  setHint(resolveHint(G.word, G.hints[G.word]));
+  renderBlanks(); renderHUD();
+  feedback(`${G.round}라운드 시작! 힌트를 읽고 알맞은 글자를 쏴 봐요.`, "info");
+}
+// 라운드마다 낙하 속도 기준값 +0.18 (원본 0.07보다 크게), 최대 3.2배까지
+const SPEED_STEP = 0.18, SPEED_MAX = 3.2;
+function fallSpeed(){ return (Math.min(SPEED_MAX, 1 + SPEED_STEP*(G.round-1)) + Math.random()*0.2) * SCRATCH_FPS * STAGE_SCALE; }
+function spawnInterval(){ return Math.max(0.75, 1.3 - 0.05*(G.round-1)); }
+function needed(){ return [...new Set(G.word)].filter(c=>!G.revealed.has(c)); }
+function spawnLetter(){
+  const need = needed();
+  let ch;
+  if(need.length && Math.random()<0.4) ch = need[Math.floor(Math.random()*need.length)];
+  else ch = String.fromCharCode(65+Math.floor(Math.random()*26));
+  // 겹치지 않는 가로 위치
+  let x, tries=0;
+  do{ x = 50 + Math.random()*(W-100); tries++; }
+  while(tries<8 && G.letters.some(l=>l.y<80 && Math.abs(l.x-x)<70));
+  G.letters.push({ch, x, y:-30, vy:fallSpeed(), wob:Math.random()*6.28});
+}
+
+/* ---- 판정 ---- */
+// 판정 기준(구현 결정): 맞힌 순간의 단어 상태로 판단.
+//  - 아직 안 찾은 글자 → +10, 같은 글자 모두 공개
+//  - 이미 찾은 글자 → 점수·목숨 변화 없음
+//  - 단어에 없는 글자 → -5점(최소 0), 목숨 -1
+function hitLetter(l){
+  sparkBurst(l.x,l.y, "#e9e4ff");
+  if(G.word.includes(l.ch) && !G.revealed.has(l.ch)){
+    G.revealed.add(l.ch); G.score+=10; sfx.good();
+    floatText(l.x,l.y,"+10","#3ef2e6"); sparkBurst(l.x,l.y,"#3ef2e6");
+    feedback(`좋아요! ${l.ch}를 찾았어요. +10점`, "good");
+    renderBlanks(l.ch); renderHUD();
+    if(needed().length===0) roundClear();
+  } else if(G.word.includes(l.ch)){
+    floatText(l.x,l.y,l.ch+" ✓","#ffe066");
+    feedback(`${l.ch}는 이미 찾은 글자예요. 다른 글자를 찾아 봐요!`, "info");
+  } else {
+    G.score = Math.max(0, G.score-5); G.lives--; sfx.bad();
+    floatText(l.x,l.y,"-5","#ff5a6e"); sparkBurst(l.x,l.y,"#ff5a6e");
+    feedback(`아쉬워요! ${l.ch}는 이 단어에 없어요. -5점, 목숨 -1. 다시 해 봐요!`, "bad");
+    renderHUD();
+    if(G.lives<=0) gameOver();
+  }
+}
+function shipHit(l){
+  G.lives--; G.invuln=1.2; sfx.hit();
+  sparkBurst(G.ship.x,G.ship.y,"#ff5a6e",22);
+  floatText(G.ship.x,G.ship.y-40,"목숨 -1","#ff5a6e");
+  feedback("앗, 부딪혔어요! 목숨 -1. 알파벳을 피해요!", "bad");
+  renderHUD();
+  if(G.lives<=0) gameOver();
+}
+function roundClear(){
+  G.state="clear"; G.clearT=2.0; G.completed.push(G.word);
+  G.letters=[]; G.bullets=[];
+  sfx.clear();
+  feedback(`완성! ${G.word} — 정말 잘했어요!`, "good");
+  // 힌트에 정답을 채워서 보여 줌
+  const h = resolveHint(G.word, G.hints[G.word]);
+  $("hintText").innerHTML = esc(h.text).split(GAP).join(`<span class="gap" style="color:var(--cyan)">${G.word.toLowerCase()}</span>`);
+}
+function endGame(win){
+  G.state="end";
+  const best = bestScore(), newBest = G.score>best;
+  if(newBest) store("swi_best", String(G.score));
+  $("endTitle").textContent = win ? "모든 단어 완성! 🎉" : "게임 오버";
+  $("endTitle").style.color = win ? "var(--cyan)" : "var(--red)";
+  $("endMsg").textContent = win ? `${G.words.length}개 단어를 모두 완성했어요. 대단해요!`
+                                : `이번 단어는 ${G.word} 였어요. 다시 도전해 봐요!`;
+  $("endScore").innerHTML = `점수 <b>${G.score}</b>점 · 완성한 단어 ${G.completed.length} / ${G.words.length}` + (newBest&&G.score>0 ? ` · <span style="color:var(--yellow)">최고 기록!</span>` : ` · 최고 ${Math.max(best,G.score)}점`);
+  $("endWords").innerHTML = G.completed.map(w=>`<span class="chip">${w}</span>`).join("");
+  show("scEnd");
+}
+function gameOver(){ clearField(); sfx.over(); feedback("목숨을 모두 썼어요. 다시 해 봐요!", "bad"); endGame(false); }
+function win(){ sfx.win(); endGame(true); }
+
+$("btnAgain").onclick = ()=>startGame(true);
+$("btnHome").onclick = goMenu;
+$("btnResume").onclick = ()=>togglePause();
+$("btnQuit").onclick = goMenu;
+$("btnSound").onclick = ()=>{ toggleSound(); $("btnSound").blur(); };
+
+function togglePause(){
+  if(G.state==="playing"){ G.state="paused"; show("scPause"); }
+  else if(G.state==="paused"){ G.state="playing"; hideAll(); G.keys={}; }
+}
+
+/* ================== DOM 표시 ================== */
+function setHint(h){
+  if(!h){ $("hintLabel").textContent="힌트"; $("hintText").textContent="게임을 시작하면 여기에 영어 힌트가 나와요."; $("blanks").innerHTML=""; feedback(""); return; }
+  $("hintLabel").textContent = HINT_LABEL[h.kind];
+  $("hintText").innerHTML = esc(h.text).split(GAP).join(`<span class="gap">${GAP}</span>`);
+}
+function renderBlanks(newCh){
+  $("blanks").innerHTML = [...G.word].map(c=>{
+    const on = G.revealed.has(c);
+    return `<div class="blank${on?" on":""}"${on&&c!==newCh?' style="animation:none"':""}>${on?c:""}</div>`;
+  }).join("");
+}
+function renderHUD(){
+  $("hudScore").textContent = G.score;
+  $("hudRound").textContent = G.round ? `${G.round} / ${G.words.length}` : "-";
+  let s=""; for(let i=0;i<START_LIVES;i++) s += i<G.lives ? "♥" : '<span class="off">♥</span>';
+  $("hudLives").innerHTML = G.round ? s : "-";
+}
+let fbTimer=null;
+function feedback(msg, kind){
+  const el=$("feedback"); el.textContent=msg; el.className="feedback "+(kind||""); el.style.opacity=1;
+  clearTimeout(fbTimer); if(msg) fbTimer=setTimeout(()=>{ el.style.opacity=0.35; }, 2600);
+}
+
+/* ================== 입력 ================== */
+const MOVE_KEYS = {ArrowLeft:"l",KeyA:"l",ArrowRight:"r",KeyD:"r",ArrowUp:"u",KeyW:"u",ArrowDown:"d",KeyS:"d"};
+window.addEventListener("keydown", e=>{
+  const playingLike = G.state==="playing"||G.state==="clear"||G.state==="paused";
+  if(MOVE_KEYS[e.code] || e.code==="Space"){
+    if(playingLike){ e.preventDefault(); }
+    if(e.code==="Space" && !playingLike) return; // 버튼 누르기 용
+  }
+  if(MOVE_KEYS[e.code]){ G.keys[MOVE_KEYS[e.code]]=true; G.input="keys"; }
+  if(e.code==="Space") G.keys.fire=true;
+  if(e.code==="KeyP"||e.code==="Escape") togglePause();
+  if(e.code==="KeyM") toggleSound();
+  if(e.code==="KeyR" && G.state==="end") startGame(true);
+});
+window.addEventListener("keyup", e=>{
+  if(MOVE_KEYS[e.code]) G.keys[MOVE_KEYS[e.code]]=false;
+  if(e.code==="Space") G.keys.fire=false;
+});
+window.addEventListener("blur", ()=>{ G.keys={}; G.pointerDown=false; if(G.state==="playing") togglePause(); });
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden && G.state==="playing") togglePause(); });
+
+function toLogical(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/r.width, y:(e.clientY-r.top)*H/r.height}; }
+function setPointerTarget(e){
+  const p=toLogical(e); G.input="mouse";
+  G.touch = e.pointerType==="touch" || e.pointerType==="pen";
+  G.target = {x:p.x, y: G.touch ? p.y-90 : p.y}; // 터치는 손가락에 가리지 않게 위쪽으로
+}
+cv.addEventListener("pointermove", e=>{ if(e.pointerType==="mouse" || G.pointerDown) setPointerTarget(e); });
+cv.addEventListener("pointerdown", e=>{
+  if(G.state!=="playing") return;
+  cv.setPointerCapture(e.pointerId); setPointerTarget(e); G.pointerDown=true; tryFire(true);
+});
+const endPointer = ()=>{ G.pointerDown=false; };
+cv.addEventListener("pointerup", endPointer); cv.addEventListener("pointercancel", endPointer);
+
+function tryFire(force){
+  if(G.fireT>0) return;
+  G.bullets.push({x:G.ship.x, y:G.ship.y-34});
+  G.fireT = FIRE_GAP; sfx.shoot();
+}
+
+/* ================== 갱신 ================== */
+const SHIP_HALF_W=30, SHIP_TOP=34, SHIP_BOTTOM=26;
+function clampShip(){
+  G.ship.x = Math.min(W-SHIP_HALF_W, Math.max(SHIP_HALF_W, G.ship.x));
+  G.ship.y = Math.min(H-SHIP_BOTTOM, Math.max(SHIP_TOP, G.ship.y));
+}
+function update(dt){
+  G.time += dt;
+  for(const s of G.sparks){ s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; }
+  G.sparks = G.sparks.filter(s=>s.life>0);
+  for(const f of G.floats){ f.y-=40*dt; f.life-=dt; }
+  G.floats = G.floats.filter(f=>f.life>0);
+
+  if(G.state==="clear"){
+    G.clearT -= dt;
+    if(G.clearT<=0){ if(G.round>=G.words.length) win(); else nextRound(); }
+    return;
+  }
+  if(G.state!=="playing") return;
+
+  // 이동: 마지막으로 사용한 입력 우선
+  if(G.input==="keys"){
+    let dx=(G.keys.r?1:0)-(G.keys.l?1:0), dy=(G.keys.d?1:0)-(G.keys.u?1:0);
+    if(dx&&dy){ dx*=Math.SQRT1_2; dy*=Math.SQRT1_2; }
+    G.ship.x += dx*SHIP_SPEED*dt; G.ship.y += dy*SHIP_SPEED*dt;
+  } else {
+    const tx=Math.min(W-SHIP_HALF_W,Math.max(SHIP_HALF_W,G.target.x)), ty=Math.min(H-SHIP_BOTTOM,Math.max(SHIP_TOP,G.target.y));
+    const dx=tx-G.ship.x, dy=ty-G.ship.y, d=Math.hypot(dx,dy), step=1300*dt;
+    if(d<=step){ G.ship.x=tx; G.ship.y=ty; } else { G.ship.x+=dx/d*step; G.ship.y+=dy/d*step; }
+  }
+  clampShip();
+
+  G.fireT -= dt; G.invuln = Math.max(0, G.invuln-dt);
+  if(G.keys.fire || G.pointerDown) tryFire();
+
+  G.spawnT -= dt;
+  if(G.spawnT<=0){ spawnLetter(); G.spawnT += spawnInterval(); }
+
+  for(const b of G.bullets) b.y -= BULLET_SPEED*dt;
+  G.bullets = G.bullets.filter(b=>b.y>-20);
+  for(const l of G.letters){ l.y += l.vy*dt; l.wob += dt*2; }
+
+  // 탄환-알파벳
+  outer: for(let i=G.bullets.length-1;i>=0;i--){
+    const b=G.bullets[i];
+    for(let j=0;j<G.letters.length;j++){
+      const l=G.letters[j];
+      if(Math.abs(b.x-l.x)<LETTER_R && b.y<l.y+LETTER_R && b.y>l.y-LETTER_R-16){
+        G.bullets.splice(i,1); G.letters.splice(j,1);
+        hitLetter(l);
+        if(G.state!=="playing") return;
+        continue outer;
+      }
+    }
+  }
+  // 기체-알파벳
+  if(G.invuln<=0){
+    for(let j=0;j<G.letters.length;j++){
+      const l=G.letters[j];
+      if(Math.hypot(l.x-G.ship.x, l.y-G.ship.y) < LETTER_R+SHIP_R){
+        G.letters.splice(j,1); shipHit(l); break;
+      }
+    }
+  }
+  if(G.state!=="playing") return;
+  G.letters = G.letters.filter(l=>l.y < H+40); // 아래로 지나간 글자는 그냥 사라짐
+}
+function sparkBurst(x,y,color,n=12){
+  for(let i=0;i<n;i++){ const a=Math.random()*6.283, s=80+Math.random()*220;
+    G.sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.35+Math.random()*0.3,color}); }
+}
+function floatText(x,y,text,color){ G.floats.push({x,y,text,color,life:1.0}); }
+
+/* ================== 그리기 ================== */
+function drawTunnel(t){
+  const cx=W/2, cy=H*0.42, N=9;
+  ctx.save();
+  ctx.lineWidth=2;
+  for(let i=0;i<N;i++){
+    const p = ((i + t*0.12) % N)/N, s = p*p*1.35;
+    if(s<0.01) continue;
+    const w=W*s, h=H*s;
+    ctx.strokeStyle = i%2 ? `rgba(179,107,255,${0.05+0.22*p})` : `rgba(62,242,230,${0.04+0.18*p})`;
+    ctx.strokeRect(cx-w/2, cy-h/2, w, h);
+  }
+  ctx.strokeStyle="rgba(120,110,230,0.12)"; ctx.lineWidth=1.5;
+  const pts=[[0,0],[W,0],[0,H],[W,H],[W/2,0],[W/2,H],[0,H/2],[W,H/2]];
+  for(const [x,y] of pts){ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x,y); ctx.stroke(); }
+  ctx.restore();
+}
+function drawShip(){
+  const {x,y}=G.ship;
+  if(G.invuln>0 && Math.floor(G.time*12)%2===0) return;
+  ctx.save(); ctx.translate(x,y);
+  ctx.shadowColor="#3ef2e6"; ctx.shadowBlur=14;
+  ctx.fillStyle="#0b1d2a"; ctx.strokeStyle="#3ef2e6"; ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.moveTo(0,-34); ctx.lineTo(10,-8); ctx.lineTo(30,14); ctx.lineTo(30,24); ctx.lineTo(10,16);
+  ctx.lineTo(0,24); ctx.lineTo(-10,16); ctx.lineTo(-30,24); ctx.lineTo(-30,14); ctx.lineTo(-10,-8); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.shadowColor="#b36bff"; ctx.strokeStyle="#b36bff"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,-18); ctx.lineTo(5,0); ctx.lineTo(-5,0); ctx.closePath(); ctx.stroke();
+  // 엔진 불꽃
+  const f = 8+Math.sin(G.time*30)*3;
+  ctx.shadowColor="#ff5d8f"; ctx.fillStyle="#ff8fb0";
+  ctx.beginPath(); ctx.moveTo(-6,22); ctx.lineTo(0,22+f); ctx.lineTo(6,22); ctx.fill();
+  ctx.restore();
+}
+function drawLetters(){
+  ctx.save();
+  ctx.font='800 48px "Trebuchet MS", Verdana, Arial, sans-serif';
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(const l of G.letters){
+    const x=l.x+Math.sin(l.wob)*2;
+    ctx.fillStyle="rgba(10,10,30,0.75)";
+    ctx.beginPath(); ctx.arc(x,l.y,LETTER_R,0,6.283); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle="rgba(200,185,255,0.45)"; ctx.stroke();
+    ctx.shadowColor="#c9b8ff"; ctx.shadowBlur=10;
+    ctx.fillStyle="#f6f3ff"; ctx.fillText(l.ch, x, l.y+2);
+    ctx.shadowBlur=0;
+  }
+  ctx.restore();
+}
+function drawBullets(){
+  ctx.save(); ctx.strokeStyle="#ffe066"; ctx.lineWidth=4; ctx.lineCap="round";
+  ctx.shadowColor="#ffe066"; ctx.shadowBlur=10;
+  for(const b of G.bullets){ ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x,b.y+16); ctx.stroke(); }
+  ctx.restore();
+}
+function drawFx(){
+  ctx.save();
+  for(const s of G.sparks){ ctx.globalAlpha=Math.min(1,s.life*2.5); ctx.fillStyle=s.color; ctx.fillRect(s.x-2,s.y-2,4,4); }
+  ctx.globalAlpha=1;
+  ctx.font='800 30px "Trebuchet MS", "Malgun Gothic", sans-serif'; ctx.textAlign="center";
+  for(const f of G.floats){ ctx.globalAlpha=Math.min(1,f.life*1.6); ctx.fillStyle=f.color; ctx.shadowColor=f.color; ctx.shadowBlur=8; ctx.fillText(f.text,f.x,f.y); }
+  ctx.restore();
+}
+function drawClear(){
+  const k = 1 - Math.max(0,G.clearT-1.6)/0.4; // 등장
+  ctx.save();
+  ctx.fillStyle="rgba(3,4,12,0.55)"; ctx.fillRect(0,0,W,H);
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font='800 34px "Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+  ctx.fillStyle="#b36bff"; ctx.shadowColor="#b36bff"; ctx.shadowBlur=12;
+  ctx.fillText("단어 완성!", W/2, H/2-80);
+  ctx.font=`900 ${Math.round(96*(0.7+0.3*k))}px "Trebuchet MS", Arial, sans-serif`;
+  ctx.fillStyle="#3ef2e6"; ctx.shadowColor="#3ef2e6"; ctx.shadowBlur=22;
+  ctx.fillText(G.word, W/2, H/2+10);
+  ctx.font='700 24px "Malgun Gothic","Apple SD Gothic Neo",sans-serif'; ctx.shadowBlur=0; ctx.fillStyle="#cfd3ff";
+  ctx.fillText(G.round>=G.words.length ? "마지막 단어까지 해냈어요!" : `다음 라운드 준비… (${G.round+1} / ${G.words.length})`, W/2, H/2+90);
+  ctx.restore();
+}
+function draw(){
+  ctx.fillStyle="#03040b"; ctx.fillRect(0,0,W,H);
+  drawTunnel(G.time);
+  if(G.state==="playing"||G.state==="paused"||G.state==="clear"){
+    drawLetters(); drawBullets(); drawShip();
+  }
+  drawFx();
+  if(G.state==="clear") drawClear();
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+updateSoundBtn(); goMenu(); requestAnimationFrame(loop);
+
+// 테스트용 노출
+window.__SWI = {G, buildWordList, csvFirstColumn, txtLines, maskText, hasWord, pickExample, resolveHint, readWordFile, hitLetter, spawnLetter, nextRound};
+</script>
+</body>
+</html>
